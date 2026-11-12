@@ -1,1 +1,121 @@
+ # tijdelijk?? 
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Print Service</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; }
+        section { background: #f4f4f4; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        input, textarea, button { display: block; width: 100%; margin-bottom: 10px; padding: 10px; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background: #218838; }
+    </style>
+</head>
+<body>
 
+    <h1>3D Print Service</h1>
+
+    <!-- 1. Formulier om een 3D model te uploaden -->
+    <section>
+        <h2>Upload je 3D Model (.obj, .stl, etc.)</h2>
+        <form id="uploadForm">
+            <input type="file" id="modelFile" accept=".obj,.fbx,.stl,.3mf" required>
+            <button type="submit">Upload Bestand</button>
+        </form>
+        <p id="uploadStatus"></p>
+    </section>
+
+    <!-- 2. Formulier voor een custom aanvraag -->
+    <section>
+        <h2>Custom Model Aanvragen</h2>
+        <form id="requestForm">
+            <input type="text" id="name" placeholder="Je Naam" required>
+            <input type="email" id="email" placeholder="Je E-mail" required>
+            <textarea id="description" placeholder="Beschrijf wat je wilt laten maken..." required></textarea>
+            <button type="submit">Vraag Prijsopgave Aan</button>
+        </form>
+        <p id="requestStatus"></p>
+    </section>
+
+    <!-- 3. Betaalknop (Stripe test) -->
+    <section>
+        <h2>Betalen (Test)</h2>
+        <p>Betaal €25,00 voor je geprinte model.</p>
+        <button id="payButton">Afrekenen via Stripe</button>
+    </section>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        // --- 1. UPLOAD LOGICA ---
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Voorkom dat de pagina herlaadt
+            
+            const fileInput = document.getElementById('modelFile');
+            const formData = new FormData();
+            formData.append('modelFile', fileInput.files[0]); // Moet overeenkomen met upload.single('modelFile') in app.js
+
+            document.getElementById('uploadStatus').innerText = 'Aan het uploaden...';
+
+            try {
+                const response = await fetch(`${API_URL}/upload-model`, {
+                    method: 'POST',
+                    body: formData // Bij FormData stelt de browser automatisch de juiste headers in
+                });
+                const result = await response.json();
+                document.getElementById('uploadStatus').innerText = result.message || result.error;
+            } catch (error) {
+                document.getElementById('uploadStatus').innerText = 'Fout bij uploaden.';
+            }
+        });
+
+        // --- 2. CUSTOM AANVRAAG LOGICA ---
+        document.getElementById('requestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                description: document.getElementById('description').value
+            };
+
+            document.getElementById('requestStatus').innerText = 'Aanvraag versturen...';
+
+            try {
+                const response = await fetch(`${API_URL}/request-custom`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('requestStatus').innerText = result.message || result.error;
+            } catch (error) {
+                document.getElementById('requestStatus').innerText = 'Fout bij versturen.';
+            }
+        });
+
+        // --- 3. BETAAL LOGICA ---
+        document.getElementById('payButton').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_URL}/create-checkout-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modelName: 'Custom 3D Print', price: 2500 }) // Prijs in centen
+                });
+                const session = await response.json();
+                
+                // Stuur de bezoeker door naar de Stripe betaalpagina
+                if (session.url) {
+                    window.location.href = session.url;
+                } else {
+                    alert('Fout: ' + session.error);
+                }
+            } catch (error) {
+                alert('Fout bij het opstarten van de betaling.');
+            }
+        });
+    </script>
+</body>
+</html>
